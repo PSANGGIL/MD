@@ -1,0 +1,44 @@
+#!perl
+
+use strict;
+use Getopt::Long;
+use MaterialsScript qw(:all);
+
+
+
+my $trajectory = $Documents{"chdtc.xtd"}->Trajectory;
+for (my $i=1; $i<$trajectory->NumFrames; $i++){
+    $trajectory->CurrentFrame = $i;  # Note +1 as frames indexed from 1
+
+    my $results = $Documents{"chdtc.xtd"}->UnitCell->CalculateHBonds(Settings(MaxHydrogenAcceptorDistance => 2.5));
+
+    # Convert hydrogen bonds and close contacts to distance measures
+    #my $doc = Documents->ActiveDocument;
+        my $doc = $Documents{"chdtc.xtd"};
+        my $CCs = $doc->UnitCell->CloseContacts;
+        my $HBs = $doc->UnitCell->HydrogenBonds;
+
+        die "ERROR: Need to define close contacts or hydrogen bonds first\n"
+                if ($CCs->Count+$HBs->Count == 0);
+
+        # Close contacts
+        my $nd0 = $doc->UnitCell->Distances->Count;
+        printf "Prior distances %d\n %d", $nd0, $trajectory->FrameTime;
+        foreach my $cc (@$CCs)
+        {
+                $doc->CreateDistance([$cc->ContactAtom1,$cc->ContactAtom2]);
+        }
+        my $nd1 = $doc->UnitCell->Distances->Count;
+        printf "Close contact distances created %d\n", $nd1-$nd0;
+
+        # Hydrogen bonds
+        foreach my $hb (@$HBs)
+        {
+                $doc->CreateDistance([$hb->Atom1,$hb->Atom2]);
+                printf "Distance = %f %s %s\n", $doc->CreateDistance([$hb->Atom1,$hb->Atom2])->distance, $hb->Atom1->name, $hb->Atom2->name;
+        }
+        my $nd2 = $doc->UnitCell->Distances->Count;
+        my $d1 = $doc->UnitCell->Distances;
+
+
+        printf "Hydrogen bond distances created %d\n", $nd2-$nd1;
